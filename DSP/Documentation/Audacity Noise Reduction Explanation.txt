@@ -1,0 +1,38 @@
+-----------------------------------------------Audacity NR explanation-----------------------------------------------
+
+Audacity NR has 3 main parts: Noise profiling, decision making, filtering and frequency smoothing
+
+This NR uses spectral method so all samples are taken in frequency domain
+
+- Noise profiling: the approach they take for noise profiling is to take few noisy samples (minimum of 2 windows)
+and **AVERAGE** them (Mean=(x1+x2+...+xn)/N) for each bin. That will be used as the noise profile. Since Audacity only 
+uses one noise profile per time, this profile will be static until the user selects another profile.
+
+                        Noise profile = Average of the input noisy samples
+
+- Decision making: this block will decide if the current sample is noise or not for each bin. The output is a boolean 
+array of size N, being N the amount of bins. The decision uses **3 input samples** (or 5), beign them 2 past and one 
+present. Then the **MEDIAN** (or the second greatest) of these 3 or 5 samples is taken and used as the current sample 
+for the decision. The decision is made by comparing the noise power of each bin from the noise profile and the current 
+input power of each bin. There is a variable called **SENSITIVITY** used for tuning the decision. This variable is 
+multiplyed by the noise profile. If the variable is high the number of samples detected as noise will increase.
+
+                        if Input Power <= Noise Profile * Sensitivity   ->    Noisy Bin
+                        else                                            ->   Speech Bin
+
+- Filtering: Audacity implements an **fixed gain to filter only the bin samples detected as noise**, while the **non 
+noise bin samples will have a gain of 0dB**. This gain can be 0 to -30dB. 
+    
+                        Noisy bin ->  Output gain = Chosen gain
+                        Speech bin -> Output gain = Input bin 
+
+- Frequency smoothing: after getting the gains for each bin, the process of frequency smoothing will be applied to the 
+gains. The number of smoothing bands is variable. The smoothing process is to take the **gain of the neighbor bin in 
+consideration** to one bin gain. For example, if the current noisy bin has the chosen gain of -18dB but the neighbor 
+gains for the previous and next bin are 0dB because they are speech bins, the current noisy bin will not have -18dB as
+its gain. The gain will be averaged between the 3 of them (if smoothing bands is 3). Then the gain will be (0-18+0)/3.
+After this process then finally the input signal will be multiplied by the gain value.
+
+                        Output = Input * (Gain(-1)+Gain(0)+Gain(1))/3
+
+
