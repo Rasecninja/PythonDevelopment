@@ -4,4 +4,4 @@
 #Except for:
 !.gitignore
 !*.py
-!/IMU
+!*.csv
